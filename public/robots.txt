@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /signin
+
+# Keep app routes private
+Disallow: /dashboard
+Disallow: /assessments
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /invitations
+Disallow: /api/
+
+Sitemap: https://readiness.getspanforge.com/sitemap.xml

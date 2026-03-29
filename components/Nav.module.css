@@ -1,0 +1,201 @@
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  z-index: 100;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.scrolled {
+  background: rgba(17,19,24,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+/* ── Logo ── */
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  font-family: var(--font-playfair, 'Playfair Display', serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.logoSpan  { color: var(--white); }
+.logoForge { color: var(--red); }
+.logoSub {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.58rem;
+  color: var(--mid);
+  letter-spacing: 0.08em;
+  margin-left: 0.6rem;
+  align-self: center;
+}
+@media (max-width: 900px) { .logoSub { display: none; } }
+
+/* ── Desktop links ── */
+.links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link {
+  position: relative;
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+  padding-bottom: 2px;
+}
+.link:hover { color: var(--white); }
+.active     { color: var(--white); }
+.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0; right: 0;
+  height: 2px;
+  background: var(--red);
+  border-radius: 1px;
+}
+
+@media (max-width: 900px) { .links { display: none; } }
+
+/* ── Actions ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.desktopAction {
+  min-height: 42px;
+  padding: 0 1rem;
+  font-size: 0.9rem;
+}
+
+.userMenu {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  object-fit: cover;
+}
+.userName {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 900px) { .userName { display: none; } }
+
+/* ── Hamburger ── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  cursor: pointer;
+}
+@media (max-width: 900px) { .hamburger { display: flex; } }
+
+.bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--muted);
+  border-radius: 1px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.barOpen1 { transform: translateY(7px) rotate(45deg); }
+.barOpen2 { opacity: 0; }
+.barOpen3 { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Mobile menu ── */
+.mobileMenu {
+  display: flex;
+  flex-direction: column;
+  background: var(--charcoal);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.5rem 0 0.75rem;
+  box-shadow: 0 18px 40px rgba(6, 8, 14, 0.32);
+}
+
+.mobileMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1.5rem 0.5rem;
+}
+
+.mobileMenuLabel {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mid);
+}
+
+.mobileMenuValue {
+  font-size: 0.98rem;
+  color: var(--light);
+  font-weight: 600;
+}
+
+.mobileLink {
+  display: block;
+  padding: 0.95rem 1.5rem;
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s, background 0.2s;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
+  width: 100%;
+}
+.mobileLink:hover { color: var(--white); background: var(--surface); }
+
+@media (max-width: 900px) {
+  .userMenu {
+    gap: 0.5rem;
+  }
+
+  .avatar,
+  .desktopAction {
+    display: none;
+  }
+}

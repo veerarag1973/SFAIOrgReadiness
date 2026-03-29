@@ -1,0 +1,81 @@
+.footer {
+  background: var(--charcoal);
+  border-top: 1px solid var(--rule);
+  padding: 56px 0 0;
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 3rem;
+  padding-bottom: 48px;
+}
+
+@media (max-width: 768px) {
+  .inner {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+/* ── Brand column ── */
+.brand { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.logo {
+  font-family: var(--font-playfair, 'Playfair Display', serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.logoSpan  { color: var(--white); }
+.logoForge { color: var(--red); }
+
+.tagline {
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  font-size: 0.82rem;
+  color: var(--mid);
+  margin-top: 0.25rem;
+}
+
+.sub {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.7rem;
+  color: var(--mid);
+  letter-spacing: 0.06em;
+}
+
+/* ── Nav columns ── */
+.col { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.colHead {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--red);
+}
+
+.colLink {
+  font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+  font-size: 0.82rem;
+  color: var(--mid);
+  text-decoration: none;
+  transition: color 0.2s;
+  display: block;
+}
+.colLink:hover { color: var(--light); }
+
+/* ── Bottom bar ── */
+.bottom {
+  border-top: 1px solid var(--rule);
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.copyright {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.7rem;
+  color: var(--mid);
+}

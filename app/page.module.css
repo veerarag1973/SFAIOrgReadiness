@@ -1,0 +1,188 @@
+.hero {
+  padding: 140px 0 100px;
+  background: var(--dark);
+  background-image: radial-gradient(ellipse 800px 600px at 60% 40%, rgba(192,57,43,0.06) 0%, transparent 70%);
+}
+
+.heroContent { max-width: 680px; }
+
+.pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  animation: pulseRed 2s infinite;
+}
+
+.h1 {
+  font-family: var(--font-playfair, 'Playfair Display', serif);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 900;
+  color: var(--white);
+  line-height: 1.1;
+  margin-bottom: 1.25rem;
+}
+
+.h2 {
+  font-family: var(--font-playfair, 'Playfair Display', serif);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.sub {
+  font-size: 1.05rem;
+  color: var(--muted);
+  line-height: 1.75;
+  max-width: 580px;
+  margin-bottom: 2rem;
+}
+
+.heroCta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.heroMeta {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.72rem;
+  color: var(--mid);
+  letter-spacing: 0.06em;
+}
+
+/* ── Scoring section ── */
+.scoringSection { padding: 80px 0; }
+
+.scoringGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+@media (max-width: 900px) { .scoringGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .scoringGrid { grid-template-columns: 1fr; } }
+
+.scoreCard {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scoreRange {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
+.scoreVerdict {
+  font-family: var(--font-playfair, 'Playfair Display', serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.scoreAction {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-top: 0.25rem;
+}
+
+.verdictReady      { color: #58D68D; }
+.verdictDeveloping { color: #F0A500; }
+.verdictEmerging   { color: #F39C12; }
+.verdictNotReady   { color: var(--red-light); }
+
+.gateNote {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.6;
+  border-left: 3px solid var(--red);
+  padding-left: 1rem;
+  margin-top: 0.5rem;
+}
+.gateNote strong { color: var(--light); }
+
+/* ── Dimensions section ── */
+.sectionSub {
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 600px;
+  margin-bottom: 2.5rem;
+}
+
+.dimensionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+@media (max-width: 900px) { .dimensionsGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .dimensionsGrid { grid-template-columns: 1fr; } }
+
+.dimCard {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.5rem;
+  transition: background 0.2s, border-color 0.2s;
+  overflow: hidden;
+}
+.dimCard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--red);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dimCard:hover { background: var(--surface-2); border-color: var(--red); }
+.dimCard:hover::before { opacity: 1; }
+
+.dimNumber {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--red);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.dimLabel {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 0.5rem;
+}
+
+.dimDesc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── CTA section ── */
+.ctaSection { padding: 80px 0; }
+.ctaInner {
+  text-align: center;
+  max-width: 580px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
