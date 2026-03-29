@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { getActiveOrg } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
-import { DIMENSIONS } from '@/lib/assessment-data'
+import { DIMENSIONS, QUESTIONS, QUESTIONS_BY_ID } from '@/lib/assessment-data'
+import { isQuickScanAssessment } from '@/lib/assessment-kind'
+import { computeDimensionScores } from '@/lib/scoring'
 import styles from './page.module.css'
 
 export async function generateMetadata({ params }) {
@@ -34,17 +36,23 @@ export default async function AssessmentPage({ params }) {
   })
 
   if (!assessment || assessment.orgId !== membership.org.id) notFound()
+  if (isQuickScanAssessment(assessment) && assessment.status === 'completed') {
+    redirect(`/assessments/${id}/results`)
+  }
 
   const isCompleted   = assessment.status === 'completed'
   const isInProgress  = assessment.status === 'in_progress'
   const totalAnswered = assessment.responses.length
-  const totalQ        = 30
+  const totalQ        = QUESTIONS.length
 
   // Per-dimension answered count
   const byDim = {}
   for (const r of assessment.responses) {
-    byDim[r.dimension] = (byDim[r.dimension] ?? 0) + 1
+    const dimensionId = QUESTIONS_BY_ID[r.questionId]?.dimension ?? r.dimension
+    byDim[dimensionId] = (byDim[dimensionId] ?? 0) + 1
   }
+
+  const computedDimScores = computeDimensionScores(assessment.responses)
 
   const canManage = membership.role === 'owner' || membership.role === 'admin'
 
@@ -136,11 +144,12 @@ export default async function AssessmentPage({ params }) {
               <div className={styles.dimScoreGrid}>
                 {DIMENSIONS.map((dim) => {
                   const ds = assessment.dimensionScores.find((d) => d.dimension === dim.id)
-                  const pct = ds ? Math.round((ds.score / 25) * 100) : 0
+                  const score = ds?.score ?? computedDimScores[dim.id]?.score ?? 0
+                  const pct = Math.round((score / 25) * 100)
                   return (
                     <div key={dim.id} className={styles.dimScoreTile}>
                       <span className={styles.dimScoreLabel} style={{ color: dim.color }}>{dim.label}</span>
-                      <span className={styles.dimScoreVal}>{ds?.score ?? '—'}<span className={styles.dimScoreMax}>/25</span></span>
+                      <span className={styles.dimScoreVal}>{score}<span className={styles.dimScoreMax}>/25</span></span>
                       <div className={styles.dimScoreTrack}>
                         <div className={styles.dimScoreFill} style={{ width: `${pct}%`, background: dim.color }} />
                       </div>

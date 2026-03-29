@@ -71,6 +71,32 @@
   padding: 0.5rem;
 }
 
+.sidebarGuide {
+  margin-top: 0.6rem;
+  border-top: 1px solid var(--rule);
+  padding: 0.85rem 0.8rem 0.3rem;
+}
+
+.sidebarGuideTitle {
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 0.55rem;
+}
+
+.sidebarGuideText {
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-bottom: 0.55rem;
+}
+
+.sidebarGuideText:last-child {
+  margin-bottom: 0;
+}
+
 .sidebarItem {
   display: flex;
   align-items: center;
@@ -406,6 +432,9 @@
     flex-direction: row;
     flex-wrap: wrap;
     gap: 4px;
+  }
+  .sidebarGuide {
+    width: 100%;
   }
   .sidebarItem { flex: 1 1 auto; min-width: 120px; }
   .qHeader {

@@ -40,8 +40,8 @@ export default function NewAssessmentForm() {
         <p className={styles.infoTitle}>Before you begin</p>
         <ul className={styles.infoList}>
           <li>Give the assessment a name your team will recognise later.</li>
-          <li>Add a short purpose if you want to remember why this assessment was created.</li>
-          <li>After creation, you will go straight to the first question.</li>
+          <li>Run it with a cross-functional team and score what is true today, not what is planned.</li>
+          <li>Use the results as a baseline and schedule the next assessment for six months from now.</li>
         </ul>
       </div>
 
@@ -62,7 +62,7 @@ export default function NewAssessmentForm() {
           className={styles.input}
           disabled={loading}
         />
-        <p className={styles.helpText}>Example: “April 2026 leadership review” or “Product team readiness check”.</p>
+        <p className={styles.helpText}>Example: “April 2026 leadership review” or “H2 readiness workshop”.</p>
       </div>
 
       <div className={styles.field}>
@@ -79,7 +79,7 @@ export default function NewAssessmentForm() {
           className={styles.textarea}
           disabled={loading}
         />
-        <p className={styles.helpText}>Optional. Use this for context, goals, or the group completing the assessment.</p>
+        <p className={styles.helpText}>Optional. Use this for workshop scope, the team involved, or the reassessment goal.</p>
       </div>
 
       <div className={styles.actions}>

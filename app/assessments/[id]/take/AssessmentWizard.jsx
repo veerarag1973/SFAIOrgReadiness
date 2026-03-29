@@ -3,6 +3,7 @@
 // Full 30-question scoring wizard — dimension by dimension
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { WORKSHOP_FACILITATION_GUIDE } from '@/lib/assessment-data'
 import styles from './page.module.css'
 
 export default function AssessmentWizard({
@@ -137,6 +138,13 @@ export default function AssessmentWizard({
                 </button>
               )
             })}
+
+            <div className={styles.sidebarGuide}>
+              <p className={styles.sidebarGuideTitle}>Workshop Guide</p>
+              <p className={styles.sidebarGuideText}>{WORKSHOP_FACILITATION_GUIDE.duration}</p>
+              <p className={styles.sidebarGuideText}>{WORKSHOP_FACILITATION_GUIDE.rule}</p>
+              <p className={styles.sidebarGuideText}>{WORKSHOP_FACILITATION_GUIDE.reassessment}</p>
+            </div>
           </nav>
 
           {/* Main content */}

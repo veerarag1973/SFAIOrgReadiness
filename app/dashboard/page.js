@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { getActiveOrg } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
-import { computeVerdict } from '@/lib/scoring'
+import { computeAssessmentVerdict } from '@/lib/scoring'
+import { getAssessmentKindLabel, getAssessmentMaxScore } from '@/lib/assessment-kind'
 import styles from './page.module.css'
 
 export const metadata = { title: 'Dashboard' }
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
 
   const latestCompleted = completed[0] ?? null
   const latestVerdict   = latestCompleted
-    ? computeVerdict(latestCompleted.totalScore ?? 0)
+    ? computeAssessmentVerdict(latestCompleted)
     : null
 
   return (
@@ -50,15 +51,20 @@ export default async function DashboardPage() {
               Use this page to see where your team stands, continue unfinished work, or start a new assessment.
             </p>
           </div>
-          <Link href="/assessments/new" className="btn-primary">
-            Start New Assessment
-          </Link>
+          <div className={styles.headerActions}>
+            <Link href="/assessments/quick" className="btn-ghost">
+              Executive Quick Scan
+            </Link>
+            <Link href="/assessments/new" className="btn-primary">
+              Start Full Assessment
+            </Link>
+          </div>
         </div>
 
         <section className={styles.helperGrid} aria-label="Next steps">
           <div className={styles.helperCard}>
             <p className={styles.helperTitle}>If you are new here</p>
-            <p className={styles.helperText}>Start one assessment, answer each section in order, and review the results at the end.</p>
+            <p className={styles.helperText}>Start with the Executive Quick Scan if leadership wants a 10-minute view, or jump straight into the full 30-question assessment.</p>
           </div>
           <div className={styles.helperCard}>
             <p className={styles.helperTitle}>If you already started</p>
@@ -66,7 +72,7 @@ export default async function DashboardPage() {
           </div>
           <div className={styles.helperCard}>
             <p className={styles.helperTitle}>If you work with a team</p>
-            <p className={styles.helperText}>Invite colleagues from Settings so you can assess readiness together.</p>
+            <p className={styles.helperText}>Invite colleagues from Settings, run the assessment as a workshop, and schedule the next one for six months out.</p>
           </div>
         </section>
 
@@ -83,8 +89,9 @@ export default async function DashboardPage() {
           <div className={styles.scoreBanner} style={{ borderColor: latestVerdict.color }}>
             <div>
               <p className={styles.bannerLabel}>Latest Assessment Score</p>
-              <p className={styles.bannerScore}>{latestCompleted.totalScore}<span className={styles.bannerMax}>/150</span></p>
+              <p className={styles.bannerScore}>{latestCompleted.totalScore}<span className={styles.bannerMax}>/{getAssessmentMaxScore(latestCompleted)}</span></p>
               <p className={styles.bannerVerdict} style={{ color: latestVerdict.color }}>{latestVerdict.label}</p>
+              <p className={styles.bannerKind}>{getAssessmentKindLabel(latestCompleted)}</p>
             </div>
             <p className={styles.bannerDesc}>{latestVerdict.description}</p>
             <Link href={`/assessments/${latestCompleted.id}/results`} className="btn-ghost">
@@ -144,12 +151,12 @@ function AssessmentRow({ assessment: a }) {
       <div className={styles.rowLeft}>
         <p className={styles.rowTitle}>{a.name ?? 'Untitled Assessment'}</p>
         <p className={styles.rowMeta}>
-          Started by {a.createdBy?.name ?? 'Unknown'} · {new Date(a.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {getAssessmentKindLabel(a)} · {a.createdBy?.name ?? 'Unknown'} · {new Date(a.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
         </p>
       </div>
       <div className={styles.rowRight}>
         {a.status === 'completed' && a.totalScore != null && (
-          <span className={styles.rowScore}>{a.totalScore}/150</span>
+          <span className={styles.rowScore}>{a.totalScore}/{getAssessmentMaxScore(a)}</span>
         )}
         <span className={styles.rowStatus} style={{ color: statusColor[a.status] }}>
           {statusLabel[a.status]}

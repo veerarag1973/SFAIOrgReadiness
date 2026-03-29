@@ -116,6 +116,7 @@ model Assessment {
   createdById String
   name        String    @default("AI Readiness Assessment")
   description String?
+  kind        String    @default("full")
   status      String    @default("draft")
   totalScore  Int?
   verdict     String?

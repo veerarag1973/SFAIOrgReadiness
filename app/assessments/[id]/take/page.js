@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { assertOrgAccess } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
 import { QUESTIONS, DIMENSIONS } from '@/lib/assessment-data'
+import { isQuickScanAssessment } from '@/lib/assessment-kind'
 import AssessmentWizard from './AssessmentWizard'
 import styles from './page.module.css'
 
@@ -25,6 +26,7 @@ export default async function TakePage({ params }) {
   })
 
   if (!assessment) redirect('/assessments')
+  if (isQuickScanAssessment(assessment)) redirect(`/assessments/${id}/results`)
   if (assessment.status === 'completed') redirect(`/assessments/${id}/results`)
 
   await assertOrgAccess(session.user.id, assessment.orgId)

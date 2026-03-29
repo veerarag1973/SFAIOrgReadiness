@@ -1,38 +1,55 @@
-// app/assessments/[id]/results/page.js — Server Component
+// app/assessments/[id]/results/page.js
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/auth'
-import { assertOrgAccess, getActiveOrg } from '@/lib/tenant'
+import { assertOrgAccess } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
 import {
-  computeVerdict,
-  getDimensionRecommendations,
+  BONUS_AI_ECONOMICS,
+  DIMENSIONS,
+  DIMENSIONS_BY_ID,
+  QUESTIONS_BY_ID,
+  WORKSHOP_FACILITATION_GUIDE,
+} from '@/lib/assessment-data'
+import {
+  buildRoadmap,
+  computeAssessmentVerdict,
+  computeDimensionDelta,
+  computeDimensionScores,
+  computeQuickScan,
+  getBenchmarksForOrg,
+  getFailureSignals,
+  getScoreGuide,
   scoreToPercent,
   MAX_DIMENSION_SCORE,
 } from '@/lib/scoring'
-import { DIMENSIONS_BY_ID, QUESTIONS_BY_DIMENSION } from '@/lib/assessment-data'
+import {
+  getAssessmentKindLabel,
+  getAssessmentMaxScore,
+  isQuickScanAssessment,
+  stripAssessmentDescriptionMetadata,
+} from '@/lib/assessment-kind'
 import VerdictBanner from './VerdictBanner'
 import RadarChart from './RadarChart'
 import styles from './page.module.css'
 
 export async function generateMetadata({ params }) {
   const { id } = await params
-  const a = await prisma.assessment.findUnique({ where: { id }, select: { name: true } })
-  return { title: a ? `Results — ${a.name}` : 'Results' }
+  const assessment = await prisma.assessment.findUnique({ where: { id }, select: { name: true } })
+  return { title: assessment ? `Results - ${assessment.name}` : 'Results' }
 }
 
 export default async function ResultsPage({ params }) {
   const session = await auth()
-  if (!session) redirect('/signin')
+  if (!session?.user?.id) redirect('/signin')
 
   const { id } = await params
 
   const assessment = await prisma.assessment.findUnique({
-    where:   { id },
+    where: { id },
     include: {
-      responses:       { orderBy: { questionId: 'asc' } },
-      dimensionScores: true,
-      createdBy:       { select: { name: true } },
+      responses: { orderBy: { questionId: 'asc' } },
+      createdBy: { select: { name: true, email: true } },
     },
   })
 
@@ -40,160 +57,466 @@ export default async function ResultsPage({ params }) {
   if (assessment.status !== 'completed') redirect(`/assessments/${id}/take`)
 
   const membership = await assertOrgAccess(session.user.id, assessment.orgId)
+  const org = membership.org
+  const quickScanAssessment = isQuickScanAssessment(assessment)
 
-  const verdict = computeVerdict(assessment.totalScore ?? 0)
-
-  // Build dimScores map from saved DimensionScore rows
-  const dimScoresMap = {}
-  for (const ds of assessment.dimensionScores) {
-    dimScoresMap[ds.dimension] = { score: ds.score, count: QUESTIONS_BY_DIMENSION[ds.dimension]?.length ?? 5 }
-  }
-
-  const recommendations = getDimensionRecommendations(dimScoresMap)
-
-  const historyAssessments = await prisma.assessment.findMany({
-    where:   { orgId: assessment.orgId, status: 'completed', NOT: { id } },
-    orderBy: { completedAt: 'asc' },
-    select:  { id: true, name: true, totalScore: true, completedAt: true },
+  const historyCandidates = await prisma.assessment.findMany({
+    where: { orgId: assessment.orgId, status: 'completed', NOT: { id } },
+    orderBy: { completedAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      totalScore: true,
+      completedAt: true,
+      kind: true,
+    },
+    take: 12,
   })
 
-  // Build radar chart data
-  const radarData = Object.entries(dimScoresMap).map(([dimId, { score }]) => ({
-    dimension: DIMENSIONS_BY_ID[dimId]?.label ?? dimId,
-    score,
-    max:       MAX_DIMENSION_SCORE,
-    color:     DIMENSIONS_BY_ID[dimId]?.color ?? 'var(--red)',
+  const historyAssessments = historyCandidates.filter((item) => isQuickScanAssessment(item) === quickScanAssessment)
+
+  if (quickScanAssessment) {
+    return (
+      <QuickScanResultsPage
+        assessment={assessment}
+        org={org}
+        historyAssessments={historyAssessments}
+      />
+    )
+  }
+
+  return (
+    <FullAssessmentResultsPage
+      assessment={assessment}
+      org={org}
+      historyAssessments={historyAssessments}
+    />
+  )
+}
+
+function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
+  const dimScoresMap = computeDimensionScores(assessment.responses)
+  const totalScore = assessment.totalScore ?? 0
+  const verdict = computeAssessmentVerdict(assessment)
+  const scoreGuide = getScoreGuide(totalScore)
+  const quickScan = computeQuickScan(assessment.responses)
+  const failureSignals = getFailureSignals(dimScoresMap)
+  const roadmap = buildRoadmap(dimScoresMap)
+  const benchmarks = getBenchmarksForOrg(org)
+  const matchedBenchmark = benchmarks.find((benchmark) => benchmark.isMatch) ?? null
+  const discoverGatePassed = totalScore >= 90 && Object.values(dimScoresMap).every((item) => item.score >= 12)
+
+  const radarData = DIMENSIONS.map((dimension) => ({
+    dimension: dimension.label,
+    score: dimScoresMap[dimension.id]?.score ?? 0,
+    max: MAX_DIMENSION_SCORE,
+    color: dimension.color,
   }))
+
+  const previousAssessment = historyAssessments[0] ?? null
+  const totalDelta = previousAssessment ? totalScore - (previousAssessment.totalScore ?? 0) : null
 
   return (
     <main className={styles.main}>
       <div className="container">
+        <PageHeader assessment={assessment} org={org} />
 
-        {/* Header */}
-        <div className={styles.header}>
-          <div>
-            <p className={`eyebrow ${styles.eyebrow}`}>
-              Assessment Results · {new Date(assessment.completedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-            <h1 className={styles.heading}>{assessment.name ?? 'Untitled Assessment'}</h1>
+        <VerdictBanner
+          verdict={verdict}
+          totalScore={totalScore}
+          maxScore={150}
+          scoreGuide={scoreGuide}
+          discoverGatePassed={discoverGatePassed}
+        />
+
+        <section className={styles.overviewGrid}>
+          <div className={styles.infoCard}>
+            <p className={styles.cardLabel}>Executive Quick Scan</p>
+            <p className={styles.bigScore}>{quickScan.totalScore}<span>/50</span></p>
+            <p className={styles.cardBody}>{quickScan.verdict}</p>
           </div>
-          <Link href="/assessments" className="btn-ghost">← All Assessments</Link>
-        </div>
+          <div className={styles.infoCard}>
+            <p className={styles.cardLabel}>Benchmark Match</p>
+            <p className={styles.cardHeadline}>{matchedBenchmark?.label ?? 'General benchmark view'}</p>
+            <p className={styles.cardBody}>
+              {matchedBenchmark
+                ? `Typical readiness ${matchedBenchmark.typicalScore}. Top quartile ${matchedBenchmark.topQuartile}.`
+                : 'No exact sector match found, so the broader benchmark table is shown below.'}
+            </p>
+          </div>
+          <div className={styles.infoCard}>
+            <p className={styles.cardLabel}>Repeatability Loop</p>
+            <p className={styles.cardHeadline}>Re-run every 6 months</p>
+            <p className={styles.cardBody}>Use this as a management instrument, not a one-time gate. Track dimension movement over time.</p>
+          </div>
+        </section>
 
-        {/* Verdict Banner */}
-        <VerdictBanner verdict={verdict} totalScore={assessment.totalScore ?? 0} />
-
-        {/* Two-column: radar + dimension breakdown */}
-        <div className={styles.grid}>
-          <section className={styles.radarSection}>
+        <div className={styles.topGrid}>
+          <section className={styles.panel}>
             <h2 className={styles.sectionTitle}>Dimension Scores</h2>
             <RadarChart data={radarData} />
           </section>
 
-          <section className={styles.dimBreakdown}>
-            <h2 className={styles.sectionTitle}>Score Breakdown</h2>
+          <section className={styles.panel}>
+            <h2 className={styles.sectionTitle}>Maturity by Dimension</h2>
             <div className={styles.dimList}>
-              {radarData.map((d) => (
-                <DimRow key={d.dimension} data={d} />
-              ))}
+              {DIMENSIONS.map((dimension) => {
+                const score = dimScoresMap[dimension.id]?.score ?? 0
+                const maturity = roadmap.focusDimensions.find((item) => item.dimensionId === dimension.id)?.maturity
+                  ?? { label: score >= 23 ? 'Leading' : score >= 18 ? 'Operational' : score >= 11 ? 'Emerging' : 'Nascent' }
+                return <DimRow key={dimension.id} dimension={dimension} score={score} maxScore={25} maturity={maturity.label} />
+              })}
             </div>
           </section>
         </div>
 
-        {/* Recommendations */}
-        {recommendations.length > 0 && (
+        {failureSignals.length > 0 && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Improvement Priorities</h2>
-            <p className={styles.sectionSub}>
-              The following dimensions scored below 18/25. Targeted investment here will have the greatest impact on AI readiness.
-            </p>
-            <div className={styles.recList}>
-              {recommendations.map((dimId) => {
-                const dim   = DIMENSIONS_BY_ID[dimId]
-                const score = dimScoresMap[dimId]?.score ?? 0
-                return (
-                  <div key={dimId} className={styles.recCard} style={{ borderLeftColor: dim?.color ?? 'var(--red)' }}>
-                    <p className={styles.recDim}>{dim?.label ?? dimId}</p>
-                    <p className={styles.recScore}>{score}<span className={styles.recMax}>/{MAX_DIMENSION_SCORE}</span></p>
-                    <div className={styles.recBar}>
-                      <div className={styles.recBarFill} style={{ width: `${scoreToPercent(score)}%`, background: dim?.color }} />
+            <h2 className={styles.sectionTitle}>Failure Signals</h2>
+            <p className={styles.sectionSub}>These thresholds are strong indicators that AI projects will struggle unless addressed before more investment is committed.</p>
+            <div className={styles.signalGrid}>
+              {failureSignals.map((signal) => (
+                <article key={signal.id} className={styles.signalCard}>
+                  <p className={styles.signalTitle}>{signal.label}</p>
+                  <p className={styles.signalBody}>{signal.summary}</p>
+                  <p className={styles.signalEvidence}>{signal.evidence}</p>
+                  {signal.affectedDimensions?.length > 0 && (
+                    <div className={styles.signalTags}>
+                      {signal.affectedDimensions.map((dimension) => (
+                        <span key={dimension.id} className={styles.signalTag}>{dimension.label}</span>
+                      ))}
                     </div>
-                  </div>
-                )
-              })}
+                  )}
+                </article>
+              ))}
             </div>
           </section>
         )}
 
-        {/* Question-level detail per dimension */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Full Response Log</h2>
-          <div className={styles.responseLog}>
-            {assessment.responses.map((r) => {
-              const dim = DIMENSIONS_BY_ID[r.dimension]
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2 className={styles.sectionTitle}>Executive Quick Scan</h2>
+              <p className={styles.sectionSub}>A board-friendly 10-question summary derived from the full assessment.</p>
+            </div>
+            <span className={styles.quickScanSummary}>{quickScan.totalScore}/50</span>
+          </div>
+          <div className={styles.quickScanTable}>
+            {quickScan.items.map((item) => (
+              <div key={item.id} className={styles.quickScanRow}>
+                <span className={styles.quickScanDimension}>{DIMENSIONS_BY_ID[item.dimension]?.label}</span>
+                <span className={styles.quickScanPrompt}>{item.prompt}</span>
+                <span className={styles.quickScanScore}>{item.score}/5</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Industry Benchmarks</h2>
+          <p className={styles.sectionSub}>Benchmarks reflect documented readiness rather than ambition. The highlighted row is the closest match based on your workspace profile.</p>
+          <div className={styles.benchmarkTable}>
+            <div className={`${styles.benchmarkRow} ${styles.benchmarkHead}`}>
+              <span>Organisation type</span>
+              <span>Typical score</span>
+              <span>AI leaders</span>
+              <span>Top quartile</span>
+            </div>
+            {benchmarks.map((benchmark) => (
+              <div key={benchmark.id} className={`${styles.benchmarkRow} ${benchmark.isMatch ? styles.benchmarkMatch : ''}`}>
+                <span>{benchmark.label}</span>
+                <span>{benchmark.typicalScore}</span>
+                <span>{benchmark.aiLeaders}</span>
+                <span>{benchmark.topQuartile}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>90-Day Readiness Roadmap</h2>
+          <p className={styles.sectionSub}>Focus on the 2 or 3 weakest dimensions first. Do not try to repair everything at once.</p>
+          <div className={styles.focusGrid}>
+            {roadmap.focusDimensions.map((item) => (
+              <article key={item.dimensionId} className={styles.focusCard}>
+                <p className={styles.focusLabel} style={{ color: item.dimension.color }}>{item.dimension.label}</p>
+                <p className={styles.focusScore}>{item.score}<span>/25</span></p>
+                <p className={styles.focusMaturity}>{item.maturity.label}</p>
+                <ul className={styles.actionList}>
+                  {item.actions.map((action) => <li key={action}>{action}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+
+          <div className={styles.monthGrid}>
+            {roadmap.months.map((month) => (
+              <article key={month.id} className={styles.monthCard}>
+                <p className={styles.monthTitle}>{month.title}</p>
+                <ul className={styles.actionList}>
+                  {month.tasks.map((task) => <li key={task}>{task}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {previousAssessment && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2 className={styles.sectionTitle}>Comparison to Previous Assessment</h2>
+                <p className={styles.sectionSub}>Measured against {previousAssessment.name} from {new Date(previousAssessment.completedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}.</p>
+              </div>
+              <span className={`${styles.deltaBadge} ${totalDelta >= 0 ? styles.deltaUp : styles.deltaDown}`}>{formatDelta(totalDelta)} total</span>
+            </div>
+          </section>
+        )}
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Bonus Dimension - AI Economics</h2>
+          <p className={styles.sectionSub}>These prompts do not change the 150-point score. They help leadership test whether AI investment is financially sustainable.</p>
+          <div className={styles.economicsGrid}>
+            {BONUS_AI_ECONOMICS.map((item) => (
+              <article key={item.id} className={styles.economicsCard}>
+                <p className={styles.economicsId}>{item.id}</p>
+                <h3 className={styles.economicsTitle}>{item.title}</h3>
+                <p className={styles.economicsBody}>{item.whyWeAsk}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <ResponseLog assessment={assessment} />
+        <HistorySection historyAssessments={historyAssessments} />
+        <WorkshopGuide />
+      </div>
+    </main>
+  )
+}
+
+function QuickScanResultsPage({ assessment, org, historyAssessments }) {
+  const totalScore = assessment.totalScore ?? 0
+  const verdict = computeAssessmentVerdict(assessment)
+  const description = stripAssessmentDescriptionMetadata(assessment.description ?? '')
+  const dimScoresMap = computeDimensionScores(assessment.responses)
+  const quickDimensions = DIMENSIONS
+    .map((dimension) => ({
+      dimension,
+      score: dimScoresMap[dimension.id]?.score ?? 0,
+      count: dimScoresMap[dimension.id]?.count ?? 0,
+    }))
+    .filter((item) => item.count > 0)
+
+  const criticalGaps = quickDimensions.filter((item) => item.score < Math.min(4, item.count * 5))
+  const previousAssessment = historyAssessments[0] ?? null
+  const totalDelta = previousAssessment ? totalScore - (previousAssessment.totalScore ?? 0) : null
+
+  return (
+    <main className={styles.main}>
+      <div className="container">
+        <PageHeader assessment={assessment} org={org} />
+
+        <section className={styles.quickHero} style={{ borderColor: verdict.color }}>
+          <div>
+            <p className={styles.cardLabel}>Executive Quick Scan</p>
+            <p className={styles.quickHeroScore}>{totalScore}<span>/50</span></p>
+            <p className={styles.quickHeroVerdict} style={{ color: verdict.color }}>{verdict.label}</p>
+            <p className={styles.quickHeroBody}>{verdict.description}</p>
+          </div>
+          <div className={styles.quickHeroActions}>
+            <Link href="/assessments/new" className="btn-primary">Start Full Assessment</Link>
+            <Link href="/assessments/quick" className="btn-ghost">Run Another Quick Scan</Link>
+          </div>
+        </section>
+
+        {description && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Leadership Notes</h2>
+            <div className={styles.panel}>
+              <p className={styles.cardBody}>{description}</p>
+            </div>
+          </section>
+        )}
+
+        <div className={styles.topGrid}>
+          <section className={styles.panel}>
+            <h2 className={styles.sectionTitle}>Dimension Breakdown</h2>
+            <div className={styles.dimList}>
+              {quickDimensions.map((item) => (
+                <DimRow
+                  key={item.dimension.id}
+                  dimension={item.dimension}
+                  score={item.score}
+                  maxScore={item.count * 5}
+                  maturity={item.score < Math.min(4, item.count * 5) ? 'Critical gap' : 'Acceptable'}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.panel}>
+            <h2 className={styles.sectionTitle}>Recommended Next Step</h2>
+            <p className={styles.cardBody}>
+              {totalScore >= 40
+                ? 'Leadership can move into the full 30-question assessment and use that workshop to build the 90-day readiness plan.'
+                : 'Leadership should still run the full assessment, but expect the weakest dimensions to become the immediate focus areas.'}
+            </p>
+            {criticalGaps.length > 0 && (
+              <div className={styles.criticalPanelInline}>
+                <p className={styles.criticalTitle}>Critical gaps</p>
+                <ul className={styles.actionList}>
+                  {criticalGaps.map((item) => (
+                    <li key={item.dimension.id}>{item.dimension.label} scored {item.score}/{item.count * 5}.</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {previousAssessment && (
+              <p className={styles.compareText}>
+                Previous quick scan delta: {formatDelta(totalDelta)} compared with {previousAssessment.name}.
+              </p>
+            )}
+          </section>
+        </div>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Question Log</h2>
+          <div className={styles.quickScanTable}>
+            {assessment.responses.map((response) => {
+              const question = QUESTIONS_BY_ID[response.questionId]
+              const dimension = DIMENSIONS_BY_ID[response.dimension]
               return (
-                <div key={r.questionId} className={styles.responseRow}>
-                  <span className={styles.responseQ} style={{ color: dim?.color }}>
-                    {r.questionId}
-                  </span>
-                  <span className={styles.responseDim}>{dim?.label}</span>
-                  <span className={styles.responseScore}>{r.score}/5</span>
-                  {r.notes && <span className={styles.responseNotes}>{r.notes}</span>}
+                <div key={response.questionId} className={styles.quickScanRow}>
+                  <span className={styles.quickScanDimension}>{dimension?.label ?? response.dimension}</span>
+                  <span className={styles.quickScanPrompt}>{question?.title ?? response.questionId}</span>
+                  <span className={styles.quickScanScore}>{response.score}/5</span>
                 </div>
               )
             })}
           </div>
         </section>
 
-        {historyAssessments.length > 0 && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Score History</h2>
-            <p className={styles.sectionSub}>Previous completed assessments for this organisation.</p>
-            <div className={styles.historyList}>
-              {historyAssessments.map((ha) => {
-                const hVerdict = computeVerdict(ha.totalScore ?? 0)
-                const delta    = (ha.totalScore ?? 0) - (assessment.totalScore ?? 0)
-                return (
-                  <Link key={ha.id} href={`/assessments/${ha.id}/results`} className={styles.historyRow}>
-                    <div className={styles.historyLeft}>
-                      <span className={styles.historyName}>{ha.name}</span>
-                      <span className={styles.historyDate}>
-                        {new Date(ha.completedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
-                      </span>
-                    </div>
-                    <div className={styles.historyRight}>
-                      <span className={styles.historyScore}>{ha.totalScore ?? '—'}/150</span>
-                      <span
-                        className={styles.historyDelta}
-                        style={{ color: delta > 0 ? 'var(--discover)' : delta < 0 ? 'var(--red)' : 'var(--muted)' }}
-                      >
-                        {delta > 0 ? `+${delta}` : delta < 0 ? delta : '—'}
-                      </span>
-                      <span className={styles.historyVerdict}>{hVerdict.label}</span>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
+        <HistorySection historyAssessments={historyAssessments} />
       </div>
     </main>
   )
 }
 
-function DimRow({ data: d }) {
-  const pct = scoreToPercent(d.score)
+function PageHeader({ assessment, org }) {
+  return (
+    <div className={styles.header}>
+      <div>
+        <p className={`eyebrow ${styles.eyebrow}`}>
+          {getAssessmentKindLabel(assessment)} Results · {new Date(assessment.completedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+        <h1 className={styles.heading}>{assessment.name ?? 'Untitled Assessment'}</h1>
+        <p className={styles.subheading}>{org.name} · Completed by {assessment.createdBy?.name ?? assessment.createdBy?.email ?? 'Unknown'}</p>
+      </div>
+      <Link href="/assessments" className="btn-ghost">← All Assessments</Link>
+    </div>
+  )
+}
+
+function ResponseLog({ assessment }) {
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Full Response Log</h2>
+      <div className={styles.responseLog}>
+        {assessment.responses.map((response) => {
+          const question = QUESTIONS_BY_ID[response.questionId]
+          const dimension = DIMENSIONS_BY_ID[response.dimension]
+          return (
+            <div key={response.questionId} className={styles.responseRow}>
+              <div>
+                <span className={styles.responseQuestionId}>{response.questionId}</span>
+                <p className={styles.responseQuestion}>{question?.title ?? response.questionId}</p>
+                <p className={styles.responseDimension}>{dimension?.label ?? response.dimension}</p>
+              </div>
+              <div className={styles.responseRight}>
+                <span className={styles.responseScore}>{response.score}/5</span>
+                {response.notes && <p className={styles.responseNotes}>{response.notes}</p>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function HistorySection({ historyAssessments }) {
+  if (historyAssessments.length === 0) return null
+
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Score History</h2>
+      <div className={styles.historyList}>
+        {historyAssessments.map((item) => {
+          const itemVerdict = computeAssessmentVerdict(item)
+          return (
+            <Link key={item.id} href={`/assessments/${item.id}/results`} className={styles.historyRow}>
+              <div>
+                <p className={styles.historyName}>{item.name}</p>
+                <p className={styles.historyDate}>{new Date(item.completedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}</p>
+              </div>
+              <div className={styles.historyMeta}>
+                <span className={styles.historyScore}>{item.totalScore}/{getAssessmentMaxScore(item)}</span>
+                <span className={styles.historyVerdict} style={{ color: itemVerdict.color }}>{itemVerdict.label}</span>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function WorkshopGuide() {
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Workshop Facilitation Guide</h2>
+      <div className={styles.guideGrid}>
+        <GuideCard label="Participants" value={WORKSHOP_FACILITATION_GUIDE.participants} />
+        <GuideCard label="Duration" value={WORKSHOP_FACILITATION_GUIDE.duration} />
+        <GuideCard label="Scoring Rule" value={WORKSHOP_FACILITATION_GUIDE.rule} />
+        <GuideCard label="Time Allocation" value={WORKSHOP_FACILITATION_GUIDE.timeAllocation} />
+        <GuideCard label="Conflict Resolution" value={WORKSHOP_FACILITATION_GUIDE.conflictResolution} />
+        <GuideCard label="Reassessment" value={WORKSHOP_FACILITATION_GUIDE.reassessment} />
+      </div>
+    </section>
+  )
+}
+
+function formatDelta(value) {
+  if (value == null) return '—'
+  if (value === 0) return '0'
+  return value > 0 ? `+${value}` : `${value}`
+}
+
+function DimRow({ dimension, score, maxScore, maturity }) {
+  const pct = scoreToPercent(score, maxScore)
   return (
     <div className={styles.dimRow}>
       <div className={styles.dimRowTop}>
-        <span className={styles.dimRowLabel}>{d.dimension}</span>
-        <span className={styles.dimRowScore}>{d.score}<span className={styles.dimMax}>/{MAX_DIMENSION_SCORE}</span></span>
+        <div>
+          <p className={styles.dimRowLabel}>{dimension.label}</p>
+          <p className={styles.dimRowMaturity}>{maturity}</p>
+        </div>
+        <p className={styles.dimRowScore}>{score}<span>/{maxScore}</span></p>
       </div>
       <div className={styles.barWrap}>
-        <div className={styles.barFill} style={{ width: `${pct}%`, background: d.color }} />
+        <div className={styles.barFill} style={{ width: `${pct}%`, background: dimension.color }} />
       </div>
     </div>
+  )
+}
+
+function GuideCard({ label, value }) {
+  return (
+    <article className={styles.guideCard}>
+      <p className={styles.guideLabel}>{label}</p>
+      <p className={styles.guideValue}>{value}</p>
+    </article>
   )
 }

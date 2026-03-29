@@ -11,6 +11,12 @@
   flex-wrap: wrap;
 }
 
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .eyebrow {
   margin-bottom: 0.3rem;
 }
@@ -139,6 +145,15 @@
   font-weight: 700;
   font-size: 0.9rem;
   margin-top: 0.3rem;
+}
+
+.bannerKind {
+  margin-top: 0.25rem;
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .bannerDesc {

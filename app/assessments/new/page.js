@@ -21,7 +21,7 @@ export default async function NewAssessmentPage() {
           <p className="eyebrow">New Assessment</p>
           <h1 className={styles.heading}>Start an AI Readiness Assessment</h1>
           <p className={styles.sub}>
-            You will answer 30 questions across 6 areas. Most teams finish in about 20 to 30 minutes, and you can stop and come back later.
+            You will answer 30 questions across Strategy, Data, Infrastructure, Talent, Governance, and Culture. Plan for a cross-functional workshop, save the result, and re-run it every 6 months.
           </p>
         </div>
         <NewAssessmentForm />

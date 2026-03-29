@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { getActiveOrg } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
-import { computeVerdict } from '@/lib/scoring'
+import { computeAssessmentVerdict } from '@/lib/scoring'
+import { getAssessmentKindLabel, getAssessmentMaxScore } from '@/lib/assessment-kind'
 import styles from './page.module.css'
 
 export const metadata = { title: 'Assessments' }
@@ -41,7 +42,10 @@ export default async function AssessmentsPage() {
               This is your assessment library. Open any item to continue answering questions or review results.
             </p>
           </div>
-          <Link href="/assessments/new" className="btn-primary">Start New Assessment</Link>
+          <div className={styles.headerActions}>
+            <Link href="/assessments/quick" className="btn-ghost">Executive Quick Scan</Link>
+            <Link href="/assessments/new" className="btn-primary">Start Full Assessment</Link>
+          </div>
         </div>
 
         {assessments.length > 0 && (
@@ -95,7 +99,7 @@ const STATUS_LABEL = {
 }
 
 function AssessmentCard({ assessment: a }) {
-  const verdict = a.status === 'completed' ? computeVerdict(a.totalScore ?? 0) : null
+  const verdict = a.status === 'completed' ? computeAssessmentVerdict(a) : null
   const href    = a.status === 'completed'
     ? `/assessments/${a.id}/results`
     : `/assessments/${a.id}/take`
@@ -112,11 +116,11 @@ function AssessmentCard({ assessment: a }) {
       </div>
       <p className={styles.cardTitle}>{a.name ?? 'Untitled Assessment'}</p>
       <p className={styles.cardMeta}>
-        {a.createdBy?.name ?? 'Unknown'} · {new Date(a.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        {getAssessmentKindLabel(a)} · {a.createdBy?.name ?? 'Unknown'} · {new Date(a.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
       </p>
       <p className={styles.cardAction}>{a.status === 'completed' ? 'Open results and recommendations' : 'Open and continue answering questions'}</p>
       {a.status === 'completed' && a.totalScore != null && (
-        <p className={styles.cardScore}>{a.totalScore}<span className={styles.cardMax}>/150</span></p>
+        <p className={styles.cardScore}>{a.totalScore}<span className={styles.cardMax}>/{getAssessmentMaxScore(a)}</span></p>
       )}
     </Link>
   )

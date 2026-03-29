@@ -45,6 +45,11 @@ export default function Nav() {
                 </Link>
               </li>
               <li>
+                <Link href="/assessments/quick" className={`${styles.link} ${pathname === '/assessments/quick' ? styles.active : ''}`}>
+                  Quick Scan
+                </Link>
+              </li>
+              <li>
                 <Link href="/settings" className={`${styles.link} ${isActive('/settings') ? styles.active : ''}`}>
                   Settings
                 </Link>
@@ -100,6 +105,7 @@ export default function Nav() {
           </div>
           <Link href="/dashboard"   className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Dashboard</Link>
           <Link href="/assessments" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Assessments</Link>
+          <Link href="/assessments/quick" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Quick Scan</Link>
           <Link href="/settings"    className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Settings</Link>
           <button
             className={styles.mobileLink}
