@@ -38,10 +38,15 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Role must be admin or member.' }, { status: 422 })
   }
 
-  const updated = await prisma.organisationMember.update({
-    where: { orgId_userId: { orgId: membership.orgId, userId: targetId } },
-    data:  { role },
-  })
+  let updated
+  try {
+    updated = await prisma.organisationMember.update({
+      where: { orgId_userId: { orgId: membership.orgId, userId: targetId } },
+      data:  { role },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
   return NextResponse.json({ member: updated })
 }
 
@@ -61,8 +66,12 @@ export async function DELETE(request, { params }) {
   if (!target) return NextResponse.json({ error: 'Member not found.' }, { status: 404 })
   if (target.role === 'owner') return NextResponse.json({ error: 'Cannot remove the owner.' }, { status: 409 })
 
-  await prisma.organisationMember.delete({
-    where: { orgId_userId: { orgId: membership.orgId, userId: targetId } },
-  })
+  try {
+    await prisma.organisationMember.delete({
+      where: { orgId_userId: { orgId: membership.orgId, userId: targetId } },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { assertOrgAccess } from '@/lib/tenant'
+import { assertOrgAccessApi } from '@/lib/tenant'
 import {
   computeTotalScore,
   computeDimensionScores,
@@ -16,16 +16,22 @@ export async function POST(request, { params }) {
 
   const { id: assessmentId } = await params
 
-  const assessment = await prisma.assessment.findUnique({
-    where:   { id: assessmentId },
-    include: { responses: true },
-  })
+  let assessment
+  try {
+    assessment = await prisma.assessment.findUnique({
+      where:   { id: assessmentId },
+      include: { responses: true },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
   if (!assessment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (assessment.status === 'completed') {
     return NextResponse.json({ error: 'Already completed.' }, { status: 409 })
   }
 
-  await assertOrgAccess(session.user.id, assessment.orgId)
+  const member = await assertOrgAccessApi(session.user.id, assessment.orgId)
+  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Require all 30 questions answered
   if (assessment.responses.length < QUESTIONS.length) {
@@ -39,25 +45,29 @@ export async function POST(request, { params }) {
   const dimScoresMap  = computeDimensionScores(assessment.responses)
   const verdict       = computeVerdict(totalScore)
 
-  // Write dimension scores + mark as complete in a transaction
-  await prisma.$transaction([
-    ...Object.entries(dimScoresMap).map(([dimensionId, { score }]) =>
-      prisma.dimensionScore.upsert({
-        where:  { assessmentId_dimension: { assessmentId, dimension: dimensionId } },
-        update: { score },
-        create: { assessmentId, dimension: dimensionId, score },
-      })
-    ),
-    prisma.assessment.update({
-      where: { id: assessmentId },
-      data: {
-        status:      'completed',
-        totalScore,
-        verdict:     verdict.id,
-        completedAt: new Date(),
-      },
-    }),
-  ])
+  try {
+    // Write dimension scores + mark as complete in a transaction
+    await prisma.$transaction([
+      ...Object.entries(dimScoresMap).map(([dimensionId, { score }]) =>
+        prisma.dimensionScore.upsert({
+          where:  { assessmentId_dimension: { assessmentId, dimension: dimensionId } },
+          update: { score },
+          create: { assessmentId, dimension: dimensionId, score },
+        })
+      ),
+      prisma.assessment.update({
+        where: { id: assessmentId },
+        data: {
+          status:      'completed',
+          totalScore,
+          verdict:     verdict.id,
+          completedAt: new Date(),
+        },
+      }),
+    ])
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 
   return NextResponse.json({ totalScore, verdictId: verdict.id })
 }

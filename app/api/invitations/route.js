@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { getActiveOrg } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
   const session = await auth()
@@ -12,11 +13,15 @@ export async function GET() {
   const membership = await getActiveOrg(session.user.id)
   if (!membership) return NextResponse.json({ error: 'No organisation' }, { status: 404 })
 
-  const invitations = await prisma.invitation.findMany({
-    where:   { orgId: membership.orgId, acceptedAt: null, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: 'desc' },
-  })
-  return NextResponse.json({ invitations })
+  try {
+    const invitations = await prisma.invitation.findMany({
+      where:   { orgId: membership.orgId, acceptedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    })
+    return NextResponse.json({ invitations })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }
 
 export async function POST(request) {
@@ -28,6 +33,12 @@ export async function POST(request) {
 
   if (membership.role !== 'owner' && membership.role !== 'admin') {
     return NextResponse.json({ error: 'Only owners and admins can invite members.' }, { status: 403 })
+  }
+
+  // Rate limit: 10 invitations per user per 10 minutes
+  const { allowed } = rateLimit(`invite:${session.user.id}`, 10, 10 * 60 * 1000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many invitations sent. Please wait before sending more.' }, { status: 429 })
   }
 
   let body
@@ -43,6 +54,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Role must be admin or member.' }, { status: 422 })
   }
 
+  try {
   // Check if email already a member of this org
   const existingUser = await prisma.user.findUnique({ where: { email } })
   if (existingUser) {
@@ -80,7 +92,7 @@ export async function POST(request) {
   })
 
   // Email sending is handled by the app layer; return the accept URL for now
-  const appUrl    = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl    = process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const acceptUrl = `${appUrl}/invitations/accept?token=${invitation.token}`
   let emailSent = false
   let emailWarning = null
@@ -152,4 +164,7 @@ export async function POST(request) {
   }
 
   return NextResponse.json({ invitation, acceptUrl, emailSent, emailWarning }, { status: 201 })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }

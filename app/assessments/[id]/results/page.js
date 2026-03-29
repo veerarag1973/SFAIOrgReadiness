@@ -5,10 +5,13 @@ import { auth } from '@/auth'
 import { assertOrgAccess } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
 import {
+  BENCHMARK_METHODOLOGY,
   BONUS_AI_ECONOMICS,
   DIMENSIONS,
   DIMENSIONS_BY_ID,
+  PLATFORM_UPGRADE,
   QUESTIONS_BY_ID,
+  RECOMMENDED_USAGE_PATH,
   WORKSHOP_FACILITATION_GUIDE,
 } from '@/lib/assessment-data'
 import {
@@ -145,9 +148,9 @@ function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
             </p>
           </div>
           <div className={styles.infoCard}>
-            <p className={styles.cardLabel}>Repeatability Loop</p>
-            <p className={styles.cardHeadline}>Re-run every 6 months</p>
-            <p className={styles.cardBody}>Use this as a management instrument, not a one-time gate. Track dimension movement over time.</p>
+            <p className={styles.cardLabel}>SpanForge Platform</p>
+            <p className={styles.cardHeadline}>{PLATFORM_UPGRADE.headline}</p>
+            <p className={styles.cardBody}>{PLATFORM_UPGRADE.tagline} <a href={PLATFORM_UPGRADE.url} target="_blank" rel="noopener noreferrer" className={styles.platformLink}>{PLATFORM_UPGRADE.url.replace('https://', '')}</a></p>
           </div>
         </section>
 
@@ -164,7 +167,14 @@ function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
                 const score = dimScoresMap[dimension.id]?.score ?? 0
                 const maturity = roadmap.focusDimensions.find((item) => item.dimensionId === dimension.id)?.maturity
                   ?? { label: score >= 23 ? 'Leading' : score >= 18 ? 'Operational' : score >= 11 ? 'Emerging' : 'Nascent' }
-                return <DimRow key={dimension.id} dimension={dimension} score={score} maxScore={25} maturity={maturity.label} />
+                return (
+                  <div key={dimension.id}>
+                    <DimRow dimension={dimension} score={score} maxScore={25} maturity={maturity.label} />
+                    {dimension.economicsLink && (
+                      <p className={styles.economicsLink}>{dimension.economicsLink}</p>
+                    )}
+                  </div>
+                )
               })}
             </div>
           </section>
@@ -231,6 +241,12 @@ function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
               </div>
             ))}
           </div>
+          <div className={styles.methodologyNote}>
+            <p className={styles.methodologyNoteText}>{BENCHMARK_METHODOLOGY.note}</p>
+            <ul className={styles.methodologyTips}>
+              {BENCHMARK_METHODOLOGY.tips.map((tip) => <li key={tip}>{tip}</li>)}
+            </ul>
+          </div>
         </section>
 
         <section className={styles.section}>
@@ -275,9 +291,12 @@ function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Bonus Dimension - AI Economics</h2>
-          <p className={styles.sectionSub}>These prompts do not change the 150-point score. They help leadership test whether AI investment is financially sustainable.</p>
+          <p className={styles.sectionSub}>{BONUS_AI_ECONOMICS.intro}</p>
+          <div className={styles.economicsRiskBanner}>
+            Score each prompt on 1–5 and total them. A score below {BONUS_AI_ECONOMICS.riskThreshold}/15 is a risk flag for your overall programme.
+          </div>
           <div className={styles.economicsGrid}>
-            {BONUS_AI_ECONOMICS.map((item) => (
+            {BONUS_AI_ECONOMICS.questions.map((item) => (
               <article key={item.id} className={styles.economicsCard}>
                 <p className={styles.economicsId}>{item.id}</p>
                 <h3 className={styles.economicsTitle}>{item.title}</h3>
@@ -290,6 +309,7 @@ function FullAssessmentResultsPage({ assessment, org, historyAssessments }) {
         <ResponseLog assessment={assessment} />
         <HistorySection historyAssessments={historyAssessments} />
         <WorkshopGuide />
+        <PlatformUpgradeSection />
       </div>
     </main>
   )
@@ -483,6 +503,26 @@ function WorkshopGuide() {
         <GuideCard label="Time Allocation" value={WORKSHOP_FACILITATION_GUIDE.timeAllocation} />
         <GuideCard label="Conflict Resolution" value={WORKSHOP_FACILITATION_GUIDE.conflictResolution} />
         <GuideCard label="Reassessment" value={WORKSHOP_FACILITATION_GUIDE.reassessment} />
+      </div>
+    </section>
+  )
+}
+
+function PlatformUpgradeSection() {
+  return (
+    <section className={styles.platformSection}>
+      <p className={styles.platformTagline}>{PLATFORM_UPGRADE.tagline}</p>
+      <div className={styles.platformHeader}>
+        <h2 className={styles.platformHeadline}>{PLATFORM_UPGRADE.headline}</h2>
+        <p className={styles.platformSub}>{PLATFORM_UPGRADE.sub} &mdash; <a href={PLATFORM_UPGRADE.url} target="_blank" rel="noopener noreferrer" className={styles.platformLink}>{PLATFORM_UPGRADE.url.replace('https://', '')}</a></p>
+      </div>
+      <div className={styles.platformStepGrid}>
+        {PLATFORM_UPGRADE.steps.map((step) => (
+          <div key={step.id} className={styles.platformStep}>
+            <p className={styles.platformStepLabel}>{step.label}</p>
+            <p className={styles.platformStepBody}>{step.body}</p>
+          </div>
+        ))}
       </div>
     </section>
   )

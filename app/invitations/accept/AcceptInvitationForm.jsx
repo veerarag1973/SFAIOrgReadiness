@@ -43,12 +43,6 @@ export default function AcceptInvitationForm({ token, invitedEmail, sessionEmail
         >
           Sign in with Google
         </button>
-        <button
-          className={`${styles.primaryBtn} ${styles.github}`}
-          onClick={() => signIn('github', { callbackUrl: `/invitations/accept?token=${token}` })}
-        >
-          Sign in with GitHub
-        </button>
       </div>
     )
   }
@@ -60,7 +54,7 @@ export default function AcceptInvitationForm({ token, invitedEmail, sessionEmail
           You&rsquo;re signed in as <strong>{sessionEmail}</strong>, but this invitation was sent to{' '}
           <strong>{invitedEmail}</strong>. Please sign out and sign in with the correct account.
         </p>
-        <a href="/api/auth/signout?callbackUrl=/invitations/accept?token=${token}" className={styles.primaryBtn}>
+        <a href={`/api/auth/signout?callbackUrl=/invitations/accept?token=${token}`} className={styles.primaryBtn}>
           Sign out
         </a>
       </div>

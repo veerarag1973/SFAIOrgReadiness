@@ -119,6 +119,64 @@
   line-height: 1.5;
 }
 
+/* ─── Recommended Usage Path callout ─────────────────────────────────────── */
+
+.usagePath {
+  max-width: 760px;
+  margin-bottom: 2.5rem;
+}
+
+.usagePathIntro {
+  font-size: 0.88rem;
+  color: var(--light);
+  line-height: 1.65;
+  margin-bottom: 0.5rem;
+}
+
+.usagePathNote {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 1.1rem;
+  border-left: 2px solid var(--discover);
+  padding-left: 0.75rem;
+}
+
+.usageStepGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.usageStep {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.035);
+}
+
+.usageStepLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--discover);
+  margin-bottom: 0.3rem;
+}
+
+.usageStepBody {
+  font-size: 0.78rem;
+  color: var(--light);
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .usageStepGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 560px) {
   .actions {
     flex-direction: column-reverse;

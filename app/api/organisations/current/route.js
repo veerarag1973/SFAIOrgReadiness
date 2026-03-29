@@ -27,15 +27,22 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Name must be 2–120 characters.' }, { status: 422 })
   }
 
-  const org = await prisma.organisation.update({
-    where: { id: membership.orgId },
-    data: {
-      name,
-      industry: industry || null,
-      size:     size     || null,
-      website:  website  || null,
-    },
-  })
+  const org = await (async () => {
+    try {
+      return await prisma.organisation.update({
+        where: { id: membership.orgId },
+        data: {
+          name,
+          industry: industry || null,
+          size:     size     || null,
+          website:  website  || null,
+        },
+      })
+    } catch {
+      return null
+    }
+  })()
+  if (!org) return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
 
   return NextResponse.json({ org })
 }

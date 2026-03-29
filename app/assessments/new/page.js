@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { getActiveOrg } from '@/lib/tenant'
+import { RECOMMENDED_USAGE_PATH } from '@/lib/assessment-data'
 import NewAssessmentForm from './NewAssessmentForm'
 import styles from './page.module.css'
 
@@ -24,6 +25,21 @@ export default async function NewAssessmentPage() {
             You will answer 30 questions across Strategy, Data, Infrastructure, Talent, Governance, and Culture. Plan for a cross-functional workshop, save the result, and re-run it every 6 months.
           </p>
         </div>
+
+        <div className={`${styles.infoPanel} ${styles.usagePath}`}>
+          <p className={styles.infoTitle}>Before you begin — follow this path</p>
+          <p className={styles.usagePathIntro}>{RECOMMENDED_USAGE_PATH.intro}</p>
+          <p className={styles.usagePathNote}>{RECOMMENDED_USAGE_PATH.note}</p>
+          <div className={styles.usageStepGrid}>
+            {RECOMMENDED_USAGE_PATH.steps.map((step) => (
+              <div key={step.id} className={styles.usageStep}>
+                <p className={styles.usageStepLabel}>{step.label}</p>
+                <p className={styles.usageStepBody}>{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <NewAssessmentForm />
       </div>
     </main>

@@ -2,43 +2,44 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { assertOrgAccess } from '@/lib/tenant'
-
-async function getAssessmentForUser(assessmentId, userId) {
-  const assessment = await prisma.assessment.findUnique({
-    where:   { id: assessmentId },
-    include: {
-      responses:        true,
-      dimensionScores:  true,
-    },
-  })
-  if (!assessment) return null
-  // Verify user belongs to the org
-  await assertOrgAccess(userId, assessment.orgId)
-  return assessment
-}
+import { assertOrgAccessApi } from '@/lib/tenant'
 
 export async function GET(request, { params }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { id } = await params
-  const assessment = await getAssessmentForUser(id, session.user.id)
-  if (!assessment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  try {
+    const { id } = await params
+    const assessment = await prisma.assessment.findUnique({
+      where:   { id },
+      include: { responses: true, dimensionScores: true },
+    })
+    if (!assessment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json({ assessment })
+    const member = await assertOrgAccessApi(session.user.id, assessment.orgId)
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    return NextResponse.json({ assessment })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }
 
 export async function DELETE(request, { params }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { id } = await params
-  const assessment = await prisma.assessment.findUnique({ where: { id } })
-  if (!assessment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  try {
+    const { id } = await params
+    const assessment = await prisma.assessment.findUnique({ where: { id } })
+    if (!assessment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await assertOrgAccess(session.user.id, assessment.orgId)
+    const member = await assertOrgAccessApi(session.user.id, assessment.orgId)
+    if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  await prisma.assessment.delete({ where: { id } })
-  return NextResponse.json({ success: true })
+    await prisma.assessment.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }

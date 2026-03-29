@@ -12,11 +12,15 @@ export async function GET() {
   const membership = await getActiveOrg(session.user.id)
   if (!membership) return NextResponse.json({ error: 'No organisation found' }, { status: 404 })
 
-  const assessments = await prisma.assessment.findMany({
-    where:   { orgId: membership.orgId },
-    orderBy: { updatedAt: 'desc' },
-  })
-  return NextResponse.json({ assessments })
+  try {
+    const assessments = await prisma.assessment.findMany({
+      where:   { orgId: membership.orgId },
+      orderBy: { updatedAt: 'desc' },
+    })
+    return NextResponse.json({ assessments })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }
 
 // POST /api/assessments — create a new assessment
@@ -33,19 +37,25 @@ export async function POST(request) {
   const name        = (body.name        ?? '').trim()
   const description = (body.description ?? body.notes ?? '').trim()
 
-  if (!name || name.length < 2) {
-    return NextResponse.json({ error: 'Assessment name must be at least 2 characters.' }, { status: 422 })
+  if (!name || name.length < 2 || name.length > 200) {
+    return NextResponse.json({ error: 'Assessment name must be 2–200 characters.' }, { status: 422 })
+  }
+  if (description.length > 2000) {
+    return NextResponse.json({ error: 'Description must be 2000 characters or fewer.' }, { status: 422 })
   }
 
-  const assessment = await prisma.assessment.create({
-    data: {
-      name,
-      description:  description || null,
-      orgId:        membership.orgId,
-      createdById:  session.user.id,
-      status:       'draft',
-    },
-  })
-
-  return NextResponse.json({ assessment }, { status: 201 })
+  try {
+    const assessment = await prisma.assessment.create({
+      data: {
+        name,
+        description:  description || null,
+        orgId:        membership.orgId,
+        createdById:  session.user.id,
+        status:       'draft',
+      },
+    })
+    return NextResponse.json({ assessment }, { status: 201 })
+  } catch {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 500 })
+  }
 }
