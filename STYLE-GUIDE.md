@@ -230,21 +230,22 @@ Always collapse to a single column at `≤700px` or `≤768px` breakpoints.
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  min-height: 48px;
   padding: 0 1.5rem;
   background: var(--red);
   color: var(--white);
   font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
   font-weight: 600;
-  font-size: 0.9rem;
-  border-radius: 4px;
+  font-size: 0.95rem;
+  border-radius: 8px;
   border: none;
   transition: background 0.2s, transform 0.2s;
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
+  gap: 0.5rem;
 }
-.btn-primary:hover  { background: var(--red-light); transform: translateY(-1px); }
+.btn-primary:hover    { background: var(--red-light); transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 ```
 
@@ -255,27 +256,30 @@ Always collapse to a single column at `≤700px` or `≤768px` breakpoints.
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  min-height: 48px;
   padding: 0 1.5rem;
   background: transparent;
   color: var(--white);
   font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: 8px;
   transition: background 0.2s, transform 0.2s;
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
+  gap: 0.5rem;
 }
-.btn-ghost:hover { background: var(--surface); transform: translateY(-1px); }
+.btn-ghost:hover    { background: var(--surface); transform: translateY(-1px); }
+.btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 ```
 
 **Rules:**
-- Minimum touch target: `44px` height
+- Minimum touch target: `48px` height (`min-height`, not `height`)
 - Always pair primary + ghost in CTA groups with `display: flex; gap: 1rem; flex-wrap: wrap`
 - Never use a red ghost button — ghost is always neutral
+- Include `gap: 0.5rem` on buttons that contain an icon alongside text
 
 ---
 
@@ -349,7 +353,9 @@ transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 
 ## 8. Badges & Labels
 
-### Type badge (technology category)
+### Assessment dimension badge
+
+Each assessment dimension has a corresponding badge color. Use these when labeling question groups, results, or any dimensional UI:
 
 ```css
 .badge {
@@ -363,28 +369,27 @@ transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
   border-radius: 3px;
 }
 
-/* Variants */
-.badge-webapp  { background: rgba(26,82,118,0.35);  color: #5DADE2; }
-.badge-rust    { background: rgba(120,66,18,0.35);   color: #F0A500; }
-.badge-doc     { background: rgba(74,35,90,0.35);    color: #AF7AC5; }
-.badge-fw      { background: rgba(20,90,50,0.35);    color: #58D68D; }
-.badge-product { background: rgba(120,18,18,0.35);   color: #EC7063; }
+/* Dimension variants — match the phase colour palette */
+.badge-strategy   { background: rgba(26,82,118,0.35);    color: #5DADE2; }
+.badge-data       { background: rgba(20,90,50,0.35);     color: #58D68D; }
+.badge-infra      { background: rgba(120,66,18,0.35);    color: #F0A500; }
+.badge-talent     { background: rgba(74,35,90,0.35);     color: #AF7AC5; }
+.badge-governance { background: rgba(123,34,24,0.35);    color: #EC7063; }
+.badge-culture    { background: rgba(100,116,139,0.2);   color: #94A3B8; }
 ```
 
-### Blog tag badge
+### Verdict color states
+
+Verdict labels in results pages use these utility classes:
 
 ```css
-.tag {
-  font-family: var(--font-dm-mono);
-  font-size: 0.68rem;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  padding: 0.25rem 0.6rem;
-  border-radius: 3px;
-}
-/* Color the tag background to match the badge-* variants above */
+.verdict-ready      { color: #58D68D; }   /* ≥ 120 / 150 */
+.verdict-developing { color: #F0A500; }   /* 90–119 */
+.verdict-emerging   { color: #F39C12; }   /* 75–89 */
+.verdict-not-ready  { color: var(--red-light); }  /* < 75 */
 ```
+
+Apply directly on the verdict label element — they are global utilities defined in `globals.css`.
 
 ### Footer section headers / column labels
 
@@ -630,10 +635,13 @@ Use the `TerminalMock` component pattern for all code demonstrations.
 
 ```css
 :focus-visible {
-  outline: 2px solid var(--red);
-  outline-offset: 2px;
+  outline: 3px solid rgba(232, 87, 74, 0.95);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(232, 87, 74, 0.18);
 }
 ```
+
+The outer glow (`box-shadow`) improves visibility on dark surfaces — do not drop it.
 
 ### Skip link
 
@@ -664,13 +672,66 @@ Use the `TerminalMock` component pattern for all code demonstrations.
 
 1. **Design tokens** live in `styles/globals.css` `:root`. Never repeat them in component files.
 2. **Component styles** use **CSS Modules** (`.module.css`). No styled-components, no inline styles except data-driven values (`color: var(--phase-color)` set via `style` prop).
-3. **Global utility classes** (`btn-primary`, `container`, `eyebrow`, `badge`, `fade-up`, etc.) are defined in `globals.css` and `animations.css` only.
+3. **Global utility classes** (`btn-primary`, `container`, `eyebrow`, `badge`, `fade-up`, `section-dark`, `section-charcoal`, `verdict-*`, `spinner`, etc.) are defined in `globals.css` and `animations.css` only. Note: global classes use **kebab-case**; CSS Module classes use **camelCase**.
 4. **No magic numbers.** Use spacing tokens, or document the exception with a comment.
 5. Breakpoints:
    - **Mobile base**: `≤600px` — adjust `--side-padding` to `1.25rem`
    - **Layout collapse**: `≤700px` — collapse multi-col grids
    - **Nav collapse**: `<900px` — hide desktop links, show hamburger
    - **Desktop min**: `≥900px` — full multi-column layouts
+
+### App-shell layout pattern
+
+All apps use an `app-shell` flex wrapper so the footer always sticks to the bottom:
+
+```css
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell-main {
+  flex: 1;
+  padding-top: 64px;  /* offset for fixed nav */
+}
+```
+
+In `layout.js`:
+```jsx
+<body>
+  <AuthSessionProvider>
+    <div className="app-shell">
+      <Nav />
+      <main id="main-content" className="app-shell-main">
+        {children}
+      </main>
+      <Footer />
+    </div>
+  </AuthSessionProvider>
+  <Analytics />
+  <SpeedInsights />
+</body>
+```
+
+### Spinner (loading state)
+
+```css
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+```
+
+Use the `.spinner` global class inline when an async action is pending (e.g. form submit, API call). Never build per-component spinners.
 
 ---
 
@@ -767,11 +828,15 @@ Borders      rule #2A3145
 
 Fonts        Playfair Display (headlines) · DM Sans (body) · DM Mono (code, labels, eyebrows)
 
-Buttons      h=44px · border-radius 4px · primary=red · ghost=transparent+rule border
+Buttons      min-h=48px · border-radius 8px · primary=red · ghost=transparent+rule border · gap=0.5rem
 Cards        surface bg · rule border · radius 4–8px · red top-bar on hover
 Eyebrow      dm-mono 0.72rem · uppercase · letter-spacing 0.18em · color red
 Sections     80px vertical padding · alt dark/charcoal · border-top rule
 
 Hero glow    radial-gradient(ellipse at 60–75%, rgba(192,57,43,0.06), transparent 70%)
 Transition   0.2s ease (most) · 0.5s ease (reveals) · 0.7s ease (intros)
+
+Verdicts     ready=#58D68D · developing=#F0A500 · emerging=#F39C12 · not-ready=red-light
+Dimension badges  strategy=#5DADE2 · data=#58D68D · infra=#F0A500 · talent=#AF7AC5 · governance=#EC7063 · culture=#94A3B8
+Layout       app-shell(flex col min-h-100vh) · app-shell-main(flex:1 pt=64px)
 ```
